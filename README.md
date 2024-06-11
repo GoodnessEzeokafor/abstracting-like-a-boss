@@ -1,4 +1,4 @@
 
 ## Description
 
-[Blog Post](https://github.com/nestjs/nest).
+[Blog Post](https://goodiespace.com/abstracting-like-a-boss).
