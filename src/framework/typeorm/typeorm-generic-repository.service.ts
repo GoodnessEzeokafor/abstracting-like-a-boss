@@ -28,7 +28,7 @@ export class TypeOrmGenericRepository<T> implements IGenericRepository<T> {
     options?: {
       useDefault?: boolean;
       selectFields?: string[] | string;
-      relationFields?: string[] | string;
+      relationFields?: string[];
     },
   ): Promise<{
     data: any;
@@ -44,13 +44,13 @@ export class TypeOrmGenericRepository<T> implements IGenericRepository<T> {
     };
   }> {
     try {
-      const perpage = Number(query.perpage) || 10;
+      const perPage = Number(query.perPage) || 10;
       const page = Number(query.page) || 1;
       const sort = query.sort || 'DESC';
 
       const excludedFields = [
         'page',
-        'perpage',
+        'perPage',
         'dateFrom',
         'dateTo',
         'sort',
@@ -60,74 +60,32 @@ export class TypeOrmGenericRepository<T> implements IGenericRepository<T> {
       ];
       excludedFields.forEach((el) => delete query[el]);
 
-      let data: any = {};
+      const baseFindOptions = {
+        where: { ...query },
+        order: {
+          createdAt: sort,
+        },
+        take: perPage,
+        skip: page * perPage - perPage,
+      };
 
-      if (options?.useDefault) {
-        data = await this._entity.find({
-          relations: this._relationFields,
-          select: this._selectFields,
-          where: { ...query },
-          order: {
-            createdAt: sort,
-          },
-          take: perpage,
-          skip: page * perpage - perpage,
-          loadRelationIds: true,
-        });
-      } else if (options?.selectFields) {
-        data = await this._entity.find({
-          select: options?.selectFields,
-          where: { ...query },
-          order: {
-            createdAt: sort,
-          },
-          take: perpage,
-          skip: page * perpage - perpage,
-          loadRelationIds: true,
-        });
-      } else if (options?.relationFields) {
-        data = await this._entity.find({
-          relations: options?.relationFields,
-          where: { ...query },
-          order: {
-            createdAt: sort,
-          },
-          take: perpage,
-          skip: page * perpage - perpage,
-          loadRelationIds: true,
-        });
-      } else if (options?.selectFields && options?.relationFields) {
-        data = await this._entity.find({
-          relations: options?.relationFields,
-          select: options?.selectFields,
-          where: { ...query },
-          order: {
-            createdAt: sort,
-          },
-          take: perpage,
-          skip: page * perpage - perpage,
-          loadRelationIds: true,
-        });
-      } else {
-        data = await this._entity.find({
-          where: { ...query },
-          order: {
-            createdAt: sort,
-          },
-          take: perpage,
-          skip: page * perpage - perpage,
-          loadRelationIds: true,
-        });
-      }
-      const total = await this._entity.count({ where: { ...query } });
+      const data = await this._entity.find({
+        ...baseFindOptions,
+        ...(options?.relationFields
+          ? { relations: options.relationFields }
+          : null),
+        ...(options?.selectFields ? { select: options.selectFields } : []),
+      });
+
+      const total = await this._entity.count(baseFindOptions);
       const pagination = {
         hasPrevious: page > 1,
         prevPage: page - 1,
-        hasNext: page < Math.ceil(total / perpage),
+        hasNext: page < Math.ceil(total / perPage),
         next: page + 1,
         currentPage: Number(page),
-        pageSize: perpage,
-        lastPage: Math.ceil(total / perpage),
+        pageSize: perPage,
+        lastPage: Math.ceil(total / perPage),
         total,
       };
 
@@ -136,6 +94,7 @@ export class TypeOrmGenericRepository<T> implements IGenericRepository<T> {
       throw new Error(e);
     }
   }
+
   async findOne(
     key: Partial<T> | Partial<T>[],
     options?: {
